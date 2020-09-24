@@ -54,26 +54,27 @@ namespace BNJMO
             LogCanvas("Ping", "Ping : " + Ping);
         }
 
-        protected override void Start()
-        {
-            base.Start();
+        //protected override void Start()
+        //{
+        //    base.Start();
 
-            StartNewCoroutine(ref pingEnumerator, PingCoroutine());
-        }
+        //    StartNewCoroutine(ref pingEnumerator, PingCoroutine());
+        //}
 
         #endregion
 
         #region Events Callbacks
         private void On_NETWORK_NetworkStateUpdated(BEHandle<ENetworkState> handle)
         {
-            //if (handle.Arg1 == ENetworkState.NOT_CONNECTED)
-            //{
-            //    StopCoroutine(pingEnumerator);
-            //}
-            //else
-            //{
-            //    StartNewCoroutine(ref pingEnumerator, PingCoroutine());
-            //}
+            if (handle.Arg1 == ENetworkState.NOT_CONNECTED)
+            {
+                StopCoroutine(pingEnumerator);
+                Ping = 0;
+            }
+            else
+            {
+                StartNewCoroutine(ref pingEnumerator, PingCoroutine());
+            }
         }
 
         private void On_NETWORK_CalculateRTT(BEHandle<ENetworkID, int> handle)
@@ -100,8 +101,8 @@ namespace BNJMO
         #region Others
         private IEnumerator PingCoroutine()
         {
-            //while (BEventManager.Instance.NetworkState != ENetworkState.NOT_CONNECTED)
-            while (true)
+            while (BEventManager.Instance.NetworkState != ENetworkState.NOT_CONNECTED)
+            //while (true)
             {
                 RequestPing();
 
