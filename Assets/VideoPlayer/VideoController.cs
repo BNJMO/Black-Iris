@@ -20,6 +20,8 @@ namespace BNJMO
         #endregion
 
         #region Public Methods
+        public bool UseSynchronization { get { return useSynchronization; } set { useSynchronization = value; } }
+        
         public void Play()
         {
             if (IS_NOT_NULL(videoPlayer))
@@ -34,8 +36,9 @@ namespace BNJMO
                     case ENetworkState.HOST:
                         videoPlayer.Stop();
 
-                        if (playAfterPingDelay == true)
+                        if (UseSynchronization == true)
                         {
+                            LogConsole("Using synchronization ");
                             pingMap.Clear();
                             foreach (ENetworkID connectedNetworkID in BEventManager.Instance.GetConnectedNetworkIDs())
                             {
@@ -52,6 +55,7 @@ namespace BNJMO
                         }
                         else
                         {
+                            LogConsole("Not using synchronization ");
                             videoPlayer.Play();
                             BEventsCollection.BI_PlayVideo.Invoke(new BEHandle(), BEventReplicationType.TO_ALL, true);
                         }
@@ -68,7 +72,7 @@ namespace BNJMO
         private VideoPlayer videoPlayer;
 
         [SerializeField]
-        private bool playAfterPingDelay = true;
+        private bool useSynchronization = true;
 
         #endregion
 
@@ -114,6 +118,16 @@ namespace BNJMO
             BEventsCollection.BI_PlayVideo += On_BI_PlayVideo;
         }
 
+        protected override void LateStart()
+        {
+            base.LateStart();
+
+            if (videoPlayer)
+            {
+                videoPlayer.Prepare();
+            }
+        }
+
         protected override void Update()
         {
             base.Update();
@@ -127,7 +141,7 @@ namespace BNJMO
                     SPingTupple maxPing = pingTupples[0];
                     SPingTupple nextPing = pingTupples[1];
 
-                    timeDifference = maxPing.HalfPing - nextPing.HalfPing;
+                    timeDifference = (maxPing.HalfPing - nextPing.HalfPing) / 1000.0f;
                     lastTime = Time.time;
 
                     LogConsole("Play on " + maxPing.NetworkID + " with delay : " + timeDifference);
@@ -142,10 +156,13 @@ namespace BNJMO
                     SPingTupple lastPing = pingTupples[0];
                     BEventsCollection.BI_PlayVideo.Invoke(new BEHandle(), BEventReplicationType.TO_TARGET, true, lastPing.NetworkID);
 
-                    LogConsole("Play on " + lastPing.NetworkID + " with delay : " + lastPing.HalfPing);
 
-                    timeDifference = lastPing.HalfPing;
+                    timeDifference = lastPing.HalfPing / 1000.0f;
                     lastTime = Time.time;
+
+                    LogConsole("Play on " + lastPing.NetworkID + " with delay : " + timeDifference);
+
+                    pingTupples.RemoveAt(0);
                 }
                 else if (Time.time - lastTime >= timeDifference)
                 {
