@@ -39,6 +39,7 @@ namespace BNJMO
 
             /* Black Iris */
             { "BI_PlayVideo", BI_PlayVideo },
+            { "BI_SynchFrame", BI_SynchFrame },
 
 
 
@@ -332,6 +333,9 @@ namespace BNJMO
         #region Black Iris
         public static BEvent<BEHandle> BI_PlayVideo
                 = new BEvent<BEHandle>("BI_PlayVideo");
+
+        public static BEvent<BEHandle<int>> BI_SynchFrame
+                = new BEvent<BEHandle<int>>("BI_SynchFrame");
 
 
         #endregion

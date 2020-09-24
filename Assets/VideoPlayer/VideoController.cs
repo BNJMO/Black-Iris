@@ -1,3 +1,4 @@
+using RenderHeads.Media.AVProVideo;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -29,12 +30,12 @@ namespace BNJMO
                 switch (BEventManager.Instance.NetworkState)
                 {
                     case ENetworkState.NOT_CONNECTED:
-                        videoPlayer.Stop();
-                        videoPlayer.Play();
+                        StopVideo();
+                        PlayVideo();
                         break;
 
                     case ENetworkState.HOST:
-                        videoPlayer.Stop();
+                        StopVideo();
 
                         if (UseSynchronization == true)
                         {
@@ -56,12 +57,29 @@ namespace BNJMO
                         else
                         {
                             LogConsole("Not using synchronization ");
-                            videoPlayer.Play();
+                            PlayVideo();
                             BEventsCollection.BI_PlayVideo.Invoke(new BEHandle(), BEventReplicationType.TO_ALL, true);
                         }
                         break;
                 }
 
+            }
+        }
+
+        public void Pause()
+        {
+            if (IS_NOT_NULL(videoPlayer))
+            {
+                videoPlayer.Pause();
+            }
+        }
+
+        public void Sync()
+        {
+            if (IS_NOT_NULL(videoPlayer)
+                && videoPlayer.isPlaying)
+            {
+                BEventsCollection.BI_SynchFrame.Invoke(new BEHandle<int>((int)videoPlayer.frame), BEventReplicationType.TO_ALL_OTHERS);
             }
         }
 
@@ -72,17 +90,37 @@ namespace BNJMO
         private VideoPlayer videoPlayer;
 
         [SerializeField]
+        private MediaPlayer mediaPlayer;
+
+        [SerializeField]
+        private bool useMediaPlayer = true;
+
+        [SerializeField]
         private bool useSynchronization = true;
+
+        [SerializeField]
+        private int syncThreshold = 500;
+
+        [SerializeField]
+        private bool automaticSync = false;
+
+        [SerializeField]
+        private float syncRate = 2.0f;
+
 
         #endregion
 
         #region Private Variables
         private Dictionary<ENetworkID, int> pingMap = new Dictionary<ENetworkID, int>();
         private IEnumerator delayedPlayEnumerator;
+        private IEnumerator syncVideoEnumerator;
         private bool isPlayAlgoRunning = false;
         private List<SPingTupple> pingTupples = new List<SPingTupple>();
         private float timeDifference;
         private float lastTime;
+
+        private float lastFrame;
+        private float lastFrameTime;
 
         #endregion
 
@@ -97,6 +135,11 @@ namespace BNJMO
                 {
                     videoPlayer = GetComponent<VideoPlayer>();
                 }
+
+                if (mediaPlayer == null)
+                {
+                    mediaPlayer = GetComponent<MediaPlayer>();
+                }
             }
         }
 
@@ -107,6 +150,12 @@ namespace BNJMO
             BEventsCollection.NETWORK_RequestPing += On_NETWORK_RequestPing;
             BEventsCollection.NETWORK_SharePing += On_NETWORK_SharePing;
             BEventsCollection.BI_PlayVideo += On_BI_PlayVideo;
+            BEventsCollection.BI_SynchFrame += On_BI_SynchFrame;
+
+            if (videoPlayer)
+            {
+                videoPlayer.prepareCompleted += On_VideoPlayer_prepareCompleted;
+            }
         }
 
         protected override void OnDisable()
@@ -115,15 +164,18 @@ namespace BNJMO
 
             BEventsCollection.NETWORK_RequestPing -= On_NETWORK_RequestPing;
             BEventsCollection.NETWORK_SharePing -= On_NETWORK_SharePing;
-            BEventsCollection.BI_PlayVideo += On_BI_PlayVideo;
+            BEventsCollection.BI_PlayVideo -= On_BI_PlayVideo;
+            BEventsCollection.BI_SynchFrame -= On_BI_SynchFrame;
         }
 
         protected override void LateStart()
         {
             base.LateStart();
 
-            if (videoPlayer)
+            if (videoPlayer
+                && useMediaPlayer == false)
             {
+                LogConsole("Prepare video player");
                 videoPlayer.Prepare();
             }
         }
@@ -166,8 +218,29 @@ namespace BNJMO
                 }
                 else if (Time.time - lastTime >= timeDifference)
                 {
-                    videoPlayer.Play();
+                    PlayVideo();
+                    if (automaticSync == true)
+                    {
+                        StartNewCoroutine(ref syncVideoEnumerator, SyncVideoCoroutine());
+                    }
                     isPlayAlgoRunning = false;
+                }
+            }
+
+
+            if (videoPlayer)
+            {
+                LogCanvas("VideoPlayer", "Frame : " + videoPlayer.frame);
+
+                if (videoPlayer.isPlaying)
+                {
+                    float elapsedFrames = videoPlayer.frame - lastFrame;
+                    float elapsedTime = Time.time - lastFrameTime;
+
+                    LogConsole("Frames : " + elapsedFrames + " - " + elapsedTime);
+
+                    lastFrame = videoPlayer.frame;
+                    lastFrameTime = Time.time;
                 }
             }
         }
@@ -199,9 +272,30 @@ namespace BNJMO
             if (handle.InvokingNetworkID != BEventManager.Instance.LocalNetworkID 
                 && IS_NOT_NULL(videoPlayer))
             {
-                videoPlayer.Stop();
-                videoPlayer.Play();
+                StopVideo();
+                PlayVideo();
             }
+        }
+
+        private void On_BI_SynchFrame(BEHandle<int> handle)
+        {
+            if (BEventManager.Instance.LocalNetworkID != handle.InvokingNetworkID
+                && videoPlayer
+                && Mathf.Abs(videoPlayer.frame - handle.Arg1) > syncThreshold)
+            {
+                videoPlayer.frame = handle.Arg1;
+
+                if (videoPlayer.isPlaying == false)
+                {
+                    videoPlayer.Play();
+                }
+            }
+        }
+
+
+        private void On_VideoPlayer_prepareCompleted(VideoPlayer source)
+        {
+            LogConsole("Prepare completed");
         }
 
         #endregion
@@ -232,6 +326,48 @@ namespace BNJMO
             }
 
             isPlayAlgoRunning = true;
+        }
+
+        private void PlayVideo()
+        {
+            if (useMediaPlayer == true
+                && mediaPlayer)
+            {
+                mediaPlayer.Play();
+            }
+            else if (videoPlayer)
+            {
+                lastFrameTime = Time.time;
+                LogConsole("video player prepared : " + videoPlayer.isPrepared);
+                videoPlayer.Play();
+            }
+        }
+
+        private void StopVideo()
+        {
+            if (useMediaPlayer == true
+                && mediaPlayer)
+            {
+                mediaPlayer.Stop();
+                mediaPlayer.Control.Stop();
+            }
+            else if (videoPlayer)
+            {
+                videoPlayer.Stop();
+            }
+        }
+
+        private IEnumerator SyncVideoCoroutine()
+        {
+            if (videoPlayer)
+            {
+                while (videoPlayer.isPlaying == true)
+                {
+                    BEventsCollection.BI_SynchFrame.Invoke(new BEHandle<int>((int)videoPlayer.frame), BEventReplicationType.TO_ALL_OTHERS);
+
+                    yield return new WaitForSeconds(syncRate);
+                }
+            }
         }
 
         #endregion
