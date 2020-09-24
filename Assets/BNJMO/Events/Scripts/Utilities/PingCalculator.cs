@@ -22,10 +22,14 @@ namespace BNJMO
 
         [SerializeField]
         private int averageListMaxCount = 20;
+
+        [SerializeField]
+        private float pingStartCalculationDelay = 1.5f;
         #endregion
 
         #region Private Variables
         private IEnumerator pingEnumerator;
+        private IEnumerator pingDelayedStartEnumerator;
         private Queue<int> averagePings = new Queue<int>();
 
         #endregion
@@ -73,7 +77,14 @@ namespace BNJMO
             }
             else
             {
-                StartNewCoroutine(ref pingEnumerator, PingCoroutine());
+                if (pingStartCalculationDelay > 0.0f)
+                {
+                    StartNewCoroutine(ref pingDelayedStartEnumerator, PingDelayedStartCortouine());
+                }
+                else
+                {
+                    StartNewCoroutine(ref pingEnumerator, PingCoroutine());
+                }
             }
         }
 
@@ -81,7 +92,6 @@ namespace BNJMO
         {
             ENetworkID requestingNetworkID = handle.Arg1;
             int startTime = handle.Arg2;
-            ENetworkID invokingNetworkID = handle.InvokingNetworkID;
 
             // Half-way
             if (BEventManager.Instance.LocalNetworkID != requestingNetworkID)
@@ -133,6 +143,13 @@ namespace BNJMO
 
             averagePing /= averagePings.Count;
             Ping = (int) averagePing;
+        }
+
+        private IEnumerator PingDelayedStartCortouine()
+        {
+            yield return new WaitForSeconds(pingStartCalculationDelay);
+
+            StartNewCoroutine(ref pingEnumerator, PingCoroutine());
         }
 
         #endregion

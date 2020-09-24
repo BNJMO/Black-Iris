@@ -34,19 +34,27 @@ namespace BNJMO
                     case ENetworkState.HOST:
                         videoPlayer.Stop();
 
-                        pingMap.Clear();
-                        foreach (ENetworkID connectedNetworkID in BEventManager.Instance.GetConnectedNetworkIDs())
+                        if (playAfterPingDelay == true)
                         {
-                            if (connectedNetworkID == ENetworkID.HOST)
+                            pingMap.Clear();
+                            foreach (ENetworkID connectedNetworkID in BEventManager.Instance.GetConnectedNetworkIDs())
                             {
-                                continue;
+                                if (connectedNetworkID == ENetworkID.HOST)
+                                {
+                                    continue;
+                                }
+
+                                pingMap.Add(connectedNetworkID, 0);
+                                BEventsCollection.NETWORK_RequestPing.Invoke(new BEHandle(), BEventReplicationType.TO_TARGET, true, connectedNetworkID);
                             }
 
-                            pingMap.Add(connectedNetworkID, 0);
-                            BEventsCollection.NETWORK_RequestPing.Invoke(new BEHandle(), BEventReplicationType.TO_TARGET, true, connectedNetworkID);
+                            StartNewCoroutine(ref delayedPlayEnumerator, DelayedPlayCoroutine());
                         }
-
-                        StartNewCoroutine(ref delayedPlayEnumerator, DelayedPlayCoroutine());
+                        else
+                        {
+                            videoPlayer.Play();
+                            BEventsCollection.BI_PlayVideo.Invoke(new BEHandle(), BEventReplicationType.TO_ALL, true);
+                        }
                         break;
                 }
 
@@ -59,11 +67,18 @@ namespace BNJMO
         [SerializeField]
         private VideoPlayer videoPlayer;
 
+        [SerializeField]
+        private bool playAfterPingDelay = true;
+
         #endregion
 
         #region Private Variables
         private Dictionary<ENetworkID, int> pingMap = new Dictionary<ENetworkID, int>();
         private IEnumerator delayedPlayEnumerator;
+        private bool isPlayAlgoRunning = false;
+        private List<SPingTupple> pingTupples = new List<SPingTupple>();
+        private float timeDifference;
+        private float lastTime;
 
         #endregion
 
@@ -99,6 +114,47 @@ namespace BNJMO
             BEventsCollection.BI_PlayVideo += On_BI_PlayVideo;
         }
 
+        protected override void Update()
+        {
+            base.Update();
+
+            if (isPlayAlgoRunning == true)
+            {
+                // Delayed play event
+                if (pingTupples.Count > 1
+                    && Time.time - lastTime >= timeDifference)
+                {
+                    SPingTupple maxPing = pingTupples[0];
+                    SPingTupple nextPing = pingTupples[1];
+
+                    timeDifference = maxPing.HalfPing - nextPing.HalfPing;
+                    lastTime = Time.time;
+
+                    LogConsole("Play on " + maxPing.NetworkID + " with delay : " + timeDifference);
+
+                    BEventsCollection.BI_PlayVideo.Invoke(new BEHandle(), BEventReplicationType.TO_TARGET, true, maxPing.NetworkID);
+
+                    pingTupples.RemoveAt(0);
+                }
+                else if (pingTupples.Count > 0
+                    && Time.time - lastTime >= timeDifference)
+                {
+                    SPingTupple lastPing = pingTupples[0];
+                    BEventsCollection.BI_PlayVideo.Invoke(new BEHandle(), BEventReplicationType.TO_TARGET, true, lastPing.NetworkID);
+
+                    LogConsole("Play on " + lastPing.NetworkID + " with delay : " + lastPing.HalfPing);
+
+                    timeDifference = lastPing.HalfPing;
+                    lastTime = Time.time;
+                }
+                else if (Time.time - lastTime >= timeDifference)
+                {
+                    videoPlayer.Play();
+                    isPlayAlgoRunning = false;
+                }
+            }
+        }
+
         #endregion
 
         #region Events Callbacks
@@ -123,7 +179,8 @@ namespace BNJMO
 
         private void On_BI_PlayVideo(BEHandle handle)
         {
-            if (IS_NOT_NULL(videoPlayer))
+            if (handle.InvokingNetworkID != BEventManager.Instance.LocalNetworkID 
+                && IS_NOT_NULL(videoPlayer))
             {
                 videoPlayer.Stop();
                 videoPlayer.Play();
@@ -138,7 +195,7 @@ namespace BNJMO
             yield return new WaitForSeconds(1.0f);
 
             // sorted list with 0 having highest ping
-            List<SPingTupple> pingTupples = new List<SPingTupple>();
+            pingTupples = new List<SPingTupple>();
 
             // Sort 
             while(pingMap.Count != 0)
@@ -157,34 +214,7 @@ namespace BNJMO
                 pingMap.Remove(maxPing.NetworkID);
             }
 
-            // Delayed play event
-            while (pingTupples.Count > 1)
-            {
-                SPingTupple maxPing = pingTupples[0];
-                SPingTupple nextPing = pingTupples[1];
-                float timeDifference = maxPing.HalfPing - nextPing.HalfPing;
-
-                LogConsole("Play on " + maxPing.NetworkID + " with delay : " + timeDifference);
-
-                BEventsCollection.BI_PlayVideo.Invoke(new BEHandle(), BEventReplicationType.TO_TARGET, true, maxPing.NetworkID);
-
-                pingTupples.RemoveAt(0);
-
-                yield return new WaitForSecondsRealtime(timeDifference / 1000.0f);
-            }
-
-            if (pingTupples.Count > 0)
-            {
-                SPingTupple lastPing = pingTupples[0];
-                BEventsCollection.BI_PlayVideo.Invoke(new BEHandle(), BEventReplicationType.TO_TARGET, true, lastPing.NetworkID);
-
-                LogConsole("Play on " + lastPing.NetworkID + " with delay : " + lastPing.HalfPing);
-
-                yield return new WaitForSecondsRealtime(lastPing.HalfPing / 1000.0f);
-            }
-
-
-            videoPlayer.Play();
+            isPlayAlgoRunning = true;
         }
 
         #endregion
