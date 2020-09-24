@@ -99,7 +99,7 @@ namespace BNJMO
         private bool useSynchronization = true;
 
         [SerializeField]
-        private int syncThreshold = 500;
+        private int syncThreshold = 1;
 
         [SerializeField]
         private bool automaticSync = false;
@@ -237,7 +237,7 @@ namespace BNJMO
                     float elapsedFrames = videoPlayer.frame - lastFrame;
                     float elapsedTime = Time.time - lastFrameTime;
 
-                    LogConsole("Frames : " + elapsedFrames + " - " + elapsedTime);
+                    //LogConsole("Frames : " + elapsedFrames + " - " + elapsedTime);
 
                     lastFrame = videoPlayer.frame;
                     lastFrameTime = Time.time;
