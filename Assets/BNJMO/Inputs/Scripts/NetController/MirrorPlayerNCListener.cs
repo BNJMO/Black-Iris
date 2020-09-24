@@ -1,0 +1,310 @@
+﻿using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using Mirror;
+using System;
+
+namespace BNJMO
+{
+    public class MirrorPlayerNCListener : NetworkBehaviour
+    {
+        public event Action<EControllerID, EInputButton> ButtonPressed;
+        public event Action<EControllerID, EInputButton> ButtonReleased;
+        public event Action<EControllerID, EInputAxis, float, float> JoystickMoved;
+
+        public string IpAdress { get { return myNetworkIdentity.connectionToClient.address; } }
+
+        private NetworkIdentity myNetworkIdentity;
+        [SerializeField] private EControllerID controllerID = EControllerID.NONE;
+
+        private void Awake()
+        {
+            myNetworkIdentity = GetComponent<NetworkIdentity>();
+
+            ButtonPressed += On_PlayerNCListener_ButtonPressed;
+        }
+
+        private void On_PlayerNCListener_ButtonPressed(EControllerID arg1, EInputButton arg2)
+        {
+            Debug.Log("On_PlayerNCListener_ButtonPressed");
+        }
+
+        // got active on server
+        public override void OnStartServer()
+        {
+            base.OnStartServer();
+
+
+        }
+
+        // Owning client is spawned
+        public override void OnStartAuthority()
+        {
+            base.OnStartAuthority();
+
+            // Bind events of buttons and joysticks
+            NCTouchJoystickAdapter touchJoystickAdapter = FindObjectOfType<NCTouchJoystickAdapter>();
+            if (touchJoystickAdapter)
+            {
+                Debug.Log("Binding events from NCTouchJoystickAdapter");
+
+                touchJoystickAdapter.ButtonPressed += On_TouchJoystickAdapter_ButtonPressed;
+                touchJoystickAdapter.ButtonReleased += On_TouchJoystickAdapter_ButtonReleased;
+                touchJoystickAdapter.AxisUpdated += On_TouchJoystickAdapter_AxisUpdated;
+            }
+
+            // TODO: Find a better way to check if is server
+            if (InputManager.IsInstanceSet == false)
+            {
+                RequestControllerID();
+            }
+        }
+
+
+        #region Requesting Controller ID 
+        [Client]
+        private void RequestControllerID()
+        {
+            Debug.Log("RequestControllerID");
+
+            Cmd_OnRequestControllerID(myNetworkIdentity);
+        }
+
+        [Command]
+        private void Cmd_OnRequestControllerID(NetworkIdentity networkIdentity)
+        {
+            Debug.Log("Cmd_OnRequestControllerID : " + networkIdentity.connectionToClient.ToString());
+
+            NetControllerInputSource netControllerInputSource = InputManager.Instance.GetInputSource<NetControllerInputSource>();
+            if (netControllerInputSource)
+            {
+                EControllerID newControllerID = netControllerInputSource.OnNewNCJoined(this);
+                Debug.Log("Assigned controller ID : " + newControllerID);
+
+                Target_OnAssignedControllerID(networkIdentity.connectionToClient, newControllerID);
+            }
+        }
+
+        [TargetRpc]
+        private void Target_OnAssignedControllerID(NetworkConnection networkConnection, EControllerID assignedControllerID)
+        {
+            controllerID = assignedControllerID;
+            Debug.Log("Target_OnAssignedControllerID : " + controllerID);
+        }
+        #endregion
+
+        #region Button Pressed 
+        [Client]
+        private void On_TouchJoystickAdapter_ButtonPressed(EInputButton inputButton)
+        {
+            Debug.Log("On_TouchJoystickAdapter_ButtonPressed : " + inputButton);
+            Cmd_OnButtonPressed(controllerID, inputButton);
+        }
+
+        [Command]
+        private void Cmd_OnButtonPressed(EControllerID controllerID, EInputButton inputButton)
+        {
+            Debug.Log("Cmd_OnButtonPressed : " + inputButton + " - " + controllerID);
+
+            // temporary solution
+            NetControllerInputSource netControllerInputSource = InputManager.Instance.GetInputSource<NetControllerInputSource>();
+            if (netControllerInputSource)
+            {
+                Debug.Log("Calling ButtonPressed: " + inputButton + " - " + controllerID);
+
+                netControllerInputSource.PlayerNCListener_OnButtonPressed(controllerID, inputButton);
+            }
+
+            // TODO: Fix
+            //if (ButtonPressed != null)
+            //{
+            //    Debug.Log("ButtonPressed");
+
+            //    ButtonPressed.Invoke(controllerID, inputButton);
+            //}
+        }
+        #endregion
+
+        #region Button Released
+        [Client]
+        private void On_TouchJoystickAdapter_ButtonReleased(EInputButton inputButton)
+        {
+            Debug.Log("On_TouchJoystickAdapter_ButtonReleased : " + inputButton);
+
+            Cmd_OnButtonReleased(controllerID, inputButton);
+        }
+
+        [Command]
+        private void Cmd_OnButtonReleased(EControllerID controllerID, EInputButton inputButton)
+        {
+            Debug.Log("Cmd_OnButtonReleased : " + inputButton + " - " + controllerID);
+
+            // temporary solution
+            NetControllerInputSource netControllerInputSource = InputManager.Instance.GetInputSource<NetControllerInputSource>();
+            if (netControllerInputSource)
+            {
+                Debug.Log("Calling ButtonReleased: " + inputButton + " - " + controllerID);
+
+                netControllerInputSource.PlayerNCListener_OnButtonReleased(controllerID, inputButton);
+            }
+
+            // TODO: Fix
+            //if (ButtonReleased != null)
+            //{
+            //    ButtonReleased.Invoke(controllerID, inputButton);
+            //}
+        }
+        #endregion
+
+        #region Joystick Moved
+        [Client]
+        private void On_TouchJoystickAdapter_AxisUpdated(EInputAxis inputAxis, float x, float y)
+        {
+            Debug.Log("On_TouchJoystickAdapter_JoystickMoved : " + inputAxis);
+
+            Cmd_OnJoystickMoved(controllerID, inputAxis, x, y);
+        }
+
+        [Command]
+        private void Cmd_OnJoystickMoved(EControllerID controllerID, EInputAxis joystickType, float x, float y)
+        {
+            Debug.Log("Cmd_OnJoystickMoved : " + joystickType + " - " + controllerID);
+
+            // temporary solution
+            NetControllerInputSource netControllerInputSource = InputManager.Instance.GetInputSource<NetControllerInputSource>();
+            if (netControllerInputSource)
+            {
+                netControllerInputSource.PlayerNCListener_OnJoystickMoved(controllerID, joystickType, x, y);
+            }
+
+            // TODO : Fix
+            //if (JoystickMoved != null)
+            //{
+            //    Debug.Log("JoystickMoved");
+
+            //    JoystickMoved.Invoke(controllerID, joystickType, x, y);
+            //}
+        }
+        #endregion
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        // On every client
+        public override void OnStartClient()
+        {
+            base.OnStartClient();
+
+
+        }
+
+
+        // Better use OnStartAuthority
+        public override void OnStartLocalPlayer()
+        {
+            base.OnStartLocalPlayer();
+
+        }
+
+
+        public override void OnStopAuthority()
+        {
+            base.OnStopAuthority();
+
+        }
+
+        [Client] // only runs on the client
+        public void Client_UpdateInput()
+        {
+            if (isLocalPlayer) // only counts for PlayerPrefab. Don't use!
+            {
+
+            }
+
+            if (base.hasAuthority) // Correct is locally controlled
+            {
+
+            }
+        }
+
+        [Command] // run on server from client
+        public void Cmd_UpdateInput()
+        {
+
+        }
+
+
+
+
+
+        public void SendJoystickMoved(EInputAxis joystickType, float horizontalDelta, float verticalDelta)
+        {
+            //debugX = horizontalDelta;
+            //debugY = verticalDelta;
+
+            //if (client.isConnected)   
+            //{
+            //    StringMessage message = new StringMessage();
+            //    message.value = controllerGuid + "|" + (int)joystickType + "|" + horizontalDelta + "|" + verticalDelta;
+            //    client.Send(NET_CONTROLLER_MESSAGE_JOYSTICK_MOVED, message);
+            //}
+        }
+
+        public void SendButtonPressed(EInputButton inputButton)
+        {
+            //if (client.isConnected)
+            //{
+            //    StringMessage message = new StringMessage();
+            //    message.value = controllerGuid + "|" + ((int)inputButton).ToString();
+            //    client.Send(NET_CONTROLLER_MESSAGE_BUTTON_PRESSED, message);
+            //}
+        }
+
+        public void SendButtonReleased(EInputButton inputButton)
+        {
+            //if (client.isConnected)
+            //{
+            //    StringMessage message = new StringMessage();
+            //    message.value = controllerGuid + "|" + ((int)inputButton).ToString();
+            //    client.Send(NET_CONTROLLER_MESSAGE_BUTTON_RELEASED, message);
+            //}
+        }
+
+        private void On_ConfirmUIAction_ActionButtonPressed()
+        {
+            //if (client.isConnected)
+            //{
+            //    StringMessage message = new StringMessage();
+            //    message.value = controllerGuid + "|" + ((int)EInputButton.CONFIRM).ToString();
+            //    client.Send(NET_CONTROLLER_MESSAGE_BUTTON_PRESSED, message);
+            //}
+        }
+
+        private void On_CancelUIAction_ActionButtonPressed()
+        {
+            //if (client.isConnected)
+            //{
+            //    StringMessage message = new StringMessage();
+            //    message.value = controllerGuid + "|" + ((int)EInputButton.CANCEL).ToString();
+            //    client.Send(NET_CONTROLLER_MESSAGE_BUTTON_PRESSED, message);
+            //}
+        }
+    }
+}

@@ -1,0 +1,47 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 848409ee8ba454f42a5ddff137688a27, type: 3}
+  m_Name: ReferenceImageLibrary
+  m_EditorClassIdentifier: 
+  m_GuidLow: 4649940857577208473
+  m_GuidHigh: 1008132194643444154
+  m_Images:
+  - m_SerializedGuid:
+      m_GuidLow: 5601287487109577063
+      m_GuidHigh: 10683701043358353032
+    m_SerializedTextureGuid:
+      m_GuidLow: 6918904750557483577
+      m_GuidHigh: 1689117628115381880
+    m_Size: {x: 0.11492166, y: 0.148}
+    m_SpecifySize: 1
+    m_Name: Doom_VFR_Cover
+    m_Texture: {fileID: 0}
+  - m_SerializedGuid:
+      m_GuidLow: 5453327169372465852
+      m_GuidHigh: 8266565017090431623
+    m_SerializedTextureGuid:
+      m_GuidLow: 16669019487939862547
+      m_GuidHigh: 17145328160303608155
+    m_Size: {x: 0, y: 0}
+    m_SpecifySize: 0
+    m_Name: The_Subtle_Art_Of_Not_Giving_A_F
+    m_Texture: {fileID: 0}
+  - m_SerializedGuid:
+      m_GuidLow: 4895836291976853273
+      m_GuidHigh: 7927135519984696249
+    m_SerializedTextureGuid:
+      m_GuidLow: 10120963130965512363
+      m_GuidHigh: 1210513317883239080
+    m_Size: {x: 0, y: 0}
+    m_SpecifySize: 0
+    m_Name: PC_Case
+    m_Texture: {fileID: 0}
