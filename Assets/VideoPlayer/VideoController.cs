@@ -268,7 +268,7 @@ namespace BNJMO
                     lastFrameTime = Time.time;
                 }
 
-                LogCanvas("FrameTime", "Frame Time : " + averageFrameTime);
+                LogCanvas("FrameTime", "Frame Time : " + currentFrameTime);
             } 
         }
 
@@ -311,11 +311,14 @@ namespace BNJMO
                 && Mathf.Abs(videoPlayer.frame - handle.Arg1) > syncThreshold)
             {
 
-                float halfPing = PingCalculator.Instance.AveragePing / 2.0f;
-                int extraFrames = (int) (halfPing / currentFrameTime);
-                LogConsole("extre frames : " + extraFrames);
+                float transferTime = (PingCalculator.Instance.AveragePing / 2.0f) / 1000.0f;
+                int extraFrames = (int) (transferTime / currentFrameTime);
+                LogConsole("extre frames : " + extraFrames + " = halfPing " + transferTime + " + " + " currentFrameTime " + currentFrameTime);
 
                 videoPlayer.frame = handle.Arg1 + extraFrames;
+
+                lastFrame = videoPlayer.frame;
+                lastFrameTime = Time.time;
 
                 if (videoPlayer.isPlaying == false)
                 {

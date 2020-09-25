@@ -59,7 +59,7 @@ namespace BNJMO
         {
             base.Update();
 
-            LogCanvas("Ping", "Ping : " + AveragePing);
+            LogCanvas("Ping", "Avg Ping : " + AveragePing);
         }
 
         //protected override void Start()
@@ -110,6 +110,10 @@ namespace BNJMO
                 if (CurrentPing < pingDropTreshold)
                 {
                     CalculateAvgPing(CurrentPing);
+                }
+                else
+                {
+                    LogConsole("Ping dropped : " + CurrentPing);
                 }
             }
         }
