@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace BNJMO
 {
-    public class PingCalculator : BBehaviour
+    public class PingCalculator : AbstractSingletonManager<PingCalculator>
     {
         #region Public Events
 
@@ -12,7 +12,8 @@ namespace BNJMO
         #endregion
 
         #region Public Methods
-        public int Ping { get; private set; }
+        public int AveragePing { get; private set; }
+        public int CurrentPing { get; private set; }
 
         #endregion
 
@@ -25,6 +26,9 @@ namespace BNJMO
 
         [SerializeField]
         private float pingStartCalculationDelay = 1.5f;
+
+        [SerializeField]
+        private float pingDropTreshold = 300;
         #endregion
 
         #region Private Variables
@@ -55,7 +59,7 @@ namespace BNJMO
         {
             base.Update();
 
-            LogCanvas("Ping", "Ping : " + Ping);
+            LogCanvas("Ping", "Ping : " + AveragePing);
         }
 
         //protected override void Start()
@@ -73,7 +77,7 @@ namespace BNJMO
             if (handle.Arg1 == ENetworkState.NOT_CONNECTED)
             {
                 StopCoroutine(pingEnumerator);
-                Ping = 0;
+                AveragePing = 0;
             }
             else
             {
@@ -101,8 +105,12 @@ namespace BNJMO
             // Round Trip
             else
             {
-                int newPing = BUtils.GetTimeAsInt() - startTime;
-                CalculateAvgPing(newPing);
+                CurrentPing = BUtils.GetTimeAsInt() - startTime;
+
+                if (CurrentPing < pingDropTreshold)
+                {
+                    CalculateAvgPing(CurrentPing);
+                }
             }
         }
 
@@ -142,7 +150,7 @@ namespace BNJMO
             }
 
             averagePing /= averagePings.Count;
-            Ping = (int) averagePing;
+            AveragePing = (int) averagePing;
         }
 
         private IEnumerator PingDelayedStartCortouine()

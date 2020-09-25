@@ -23,6 +23,15 @@ namespace BNJMO
         #region Public Methods
         public bool UseSynchronization { get { return useSynchronization; } set { useSynchronization = value; } }
         
+        public void Prepare()
+        {
+            if (IS_NOT_NULL(videoPlayer))
+            {
+                LogConsole("Preparing");
+                videoPlayer.Prepare();
+            }
+        }
+
         public void Play()
         {
             if (IS_NOT_NULL(videoPlayer))
@@ -70,7 +79,14 @@ namespace BNJMO
         {
             if (IS_NOT_NULL(videoPlayer))
             {
-                videoPlayer.Pause();
+                if (videoPlayer.isPlaying == true)
+                {
+                    videoPlayer.Pause();
+                }
+                else
+                {
+                    videoPlayer.Play();
+                }
             }
         }
 
@@ -107,6 +123,9 @@ namespace BNJMO
         [SerializeField]
         private float syncRate = 2.0f;
 
+        [SerializeField]
+        private int averageListMaxCount = 10;
+
 
         #endregion
 
@@ -121,6 +140,9 @@ namespace BNJMO
 
         private float lastFrame;
         private float lastFrameTime;
+        private float currentFrameTime;
+        private Queue<float> averageFrameTimes = new Queue<float>();
+        private float averageFrameTime;
 
         #endregion
 
@@ -175,8 +197,7 @@ namespace BNJMO
             if (videoPlayer
                 && useMediaPlayer == false)
             {
-                LogConsole("Prepare video player");
-                videoPlayer.Prepare();
+                Prepare();
             }
         }
 
@@ -239,10 +260,16 @@ namespace BNJMO
 
                     //LogConsole("Frames : " + elapsedFrames + " - " + elapsedTime);
 
+                    currentFrameTime = elapsedTime/* / elapsedFrames*/;
+                    //LogConsole("Frame Time : " + currentFrameTime);
+                    CalculateAvgFrameTime(currentFrameTime);
+
                     lastFrame = videoPlayer.frame;
                     lastFrameTime = Time.time;
                 }
-            }
+
+                LogCanvas("FrameTime", "Frame Time : " + averageFrameTime);
+            } 
         }
 
         #endregion
@@ -283,7 +310,12 @@ namespace BNJMO
                 && videoPlayer
                 && Mathf.Abs(videoPlayer.frame - handle.Arg1) > syncThreshold)
             {
-                videoPlayer.frame = handle.Arg1;
+
+                float halfPing = PingCalculator.Instance.AveragePing / 2.0f;
+                int extraFrames = (int) (halfPing / currentFrameTime);
+                LogConsole("extre frames : " + extraFrames);
+
+                videoPlayer.frame = handle.Arg1 + extraFrames;
 
                 if (videoPlayer.isPlaying == false)
                 {
@@ -353,7 +385,9 @@ namespace BNJMO
             }
             else if (videoPlayer)
             {
-                videoPlayer.Stop();
+                //videoPlayer.Stop();
+                videoPlayer.Pause();
+                videoPlayer.frame = -1;
             }
         }
 
@@ -363,11 +397,31 @@ namespace BNJMO
             {
                 while (videoPlayer.isPlaying == true)
                 {
+                    LogConsole("Sync");
                     BEventsCollection.BI_SynchFrame.Invoke(new BEHandle<int>((int)videoPlayer.frame), BEventReplicationType.TO_ALL_OTHERS);
 
                     yield return new WaitForSeconds(syncRate);
                 }
             }
+        }
+
+        private void CalculateAvgFrameTime(float newFrameTime)
+        {
+            averageFrameTimes.Enqueue(newFrameTime);
+
+            if (averageFrameTimes.Count > averageListMaxCount)
+            {
+                averageFrameTimes.Dequeue();
+            }
+
+            float newAverageFrameTime = 0;
+            foreach (float frameTime in averageFrameTimes)
+            {
+                newAverageFrameTime += frameTime;
+            }
+            newAverageFrameTime /= averageFrameTimes.Count;
+
+            averageFrameTime = newAverageFrameTime;
         }
 
         #endregion

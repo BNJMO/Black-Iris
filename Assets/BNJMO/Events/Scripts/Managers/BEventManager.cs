@@ -100,7 +100,7 @@ namespace BNJMO
             PingCalculator pingCalculator = FindObjectOfType<PingCalculator>();
             if (IS_NOT_NULL(pingCalculator))
             {
-                return pingCalculator.Ping;
+                return pingCalculator.AveragePing;
             }
             return 0;
         }
